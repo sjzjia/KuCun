@@ -1,62 +1,58 @@
 <?php
 // dashboard.php - 库存主页，需要登录才能访问
 
-session_start(); // 启动会话
+require_once 'check_session.php'; // 引入会话验证文件
 
-// 检查用户是否已登录，否则重定向到登录页面
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("Location: login.php");
-    exit;
-}
+// db_connect.php 已经在 check_session.php 中引入，无需再次引入
+// require_once 'db_connect.php';
 
-require_once 'db_connect.php'; // 引入数据库连接文件
-
-// 从数据库获取预设国家列表
+// 预设国家列表 (从数据库获取)
 $countries = [];
 $sql_countries = "SELECT name FROM preset_countries ORDER BY name ASC";
-$result_countries = $conn->query($sql_countries);
+$result_countries = $conn->query($sql_countries); // $conn 来自 db_connect.php
 if ($result_countries && $result_countries->num_rows > 0) {
     while ($row = $result_countries->fetch_assoc()) {
         $countries[] = $row['name'];
     }
 }
 
-// 从数据库获取预设品牌列表
+// 预设品牌列表 (从数据库获取)
 $brands = [];
 $sql_brands = "SELECT name FROM preset_brands ORDER BY name ASC";
-$result_brands = $conn->query($sql_brands);
+$result_brands = $conn->query($sql_brands); // $conn 来自 db_connect.php
 if ($result_brands && $result_brands->num_rows > 0) {
     while ($row = $result_brands->fetch_assoc()) {
         $brands[] = $row['name'];
     }
 }
 
-// --- 获取用于筛选的唯一值 ---
-$unique_names = [];
-$unique_specifications = [];
+// 预设名称列表 (从数据库获取)
+$names = [];
+$sql_names = "SELECT name FROM preset_names ORDER BY name ASC";
+$result_names_preset = $conn->query($sql_names); // 避免与 $result_names 冲突
+if ($result_names_preset && $result_names_preset->num_rows > 0) {
+    while ($row = $result_names_preset->fetch_assoc()) {
+        $names[] = $row['name'];
+    }
+}
+
+// 预设规格列表 (从数据库获取)
+$specifications = [];
+$sql_specifications = "SELECT name FROM preset_specifications ORDER BY name ASC";
+$result_specifications_preset = $conn->query($sql_specifications); // 避免与 $result_specifications 冲突
+if ($result_specifications_preset && $result_specifications_preset->num_rows > 0) {
+    while ($row = $result_specifications_preset->fetch_assoc()) {
+        $specifications[] = $row['name'];
+    }
+}
+
+
+// --- 获取用于筛选的唯一值 (这些现在应该从预设表获取，而不是从 inventory 表获取，以保持一致性) ---
+// 由于现在名称和规格都有了预设表，我们直接使用预设的列表
+$unique_names = $names;
+$unique_specifications = $specifications;
+// 备注仍然从 inventory 表获取，因为备注可能非常多样，不适合预设
 $unique_remarks = [];
-
-// 获取所有唯一的名称
-$sql_unique_names = "SELECT DISTINCT name FROM inventory ORDER BY name ASC";
-$result_names = $conn->query($sql_unique_names);
-if ($result_names && $result_names->num_rows > 0) {
-    while ($row = $result_names->fetch_assoc()) {
-        $unique_names[] = $row['name'];
-    }
-}
-
-// 获取所有唯一的规格
-$sql_unique_specifications = "SELECT DISTINCT specifications FROM inventory ORDER BY specifications ASC";
-$result_specifications = $conn->query($sql_unique_specifications);
-if ($result_specifications && $result_specifications->num_rows > 0) {
-    while ($row = $result_specifications->fetch_assoc()) {
-        if (!empty($row['specifications'])) { // 排除空值
-            $unique_specifications[] = $row['specifications'];
-        }
-    }
-}
-
-// 获取所有唯一的备注
 $sql_unique_remarks = "SELECT DISTINCT remarks FROM inventory ORDER BY remarks ASC";
 $result_remarks = $conn->query($sql_unique_remarks);
 if ($result_remarks && $result_remarks->num_rows > 0) {
@@ -66,6 +62,7 @@ if ($result_remarks && $result_remarks->num_rows > 0) {
         }
     }
 }
+
 
 // 获取排序参数
 $sort_by = $_GET['sort_by'] ?? 'created_at'; // 默认按创建日期排序
@@ -222,8 +219,8 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                 <a href="shipments_list.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
                     发货列表
                 </a>
-                <a href="manage_presets.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
-                    管理预选项
+                <a href="global_settings.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
+                    全局配置
                 </a>
                 <a href="change_password.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
                     修改密码
@@ -370,7 +367,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                                 </div>
                             </th>
                             <!-- 备注 -->
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="remarks" style="min-width: 250px;">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="remarks">
                                 <div class="flex flex-col items-center">
                                     <a href="<?php echo getSortLink('remarks', $sort_by, $sort_order); ?>" class="sort-link">
                                         备注

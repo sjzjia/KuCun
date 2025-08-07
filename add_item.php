@@ -1,15 +1,7 @@
 <?php
 // add_item.php - 添加新库存物品页面
 
-session_start(); // 启动会话
-
-// 检查用户是否已登录，否则重定向到登录页面
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("Location: login.php");
-    exit;
-}
-
-require_once 'db_connect.php'; // 引入数据库连接文件
+require_once 'check_session.php'; // 引入会话验证文件
 
 $message = '';
 $error = '';
@@ -34,6 +26,26 @@ if ($result_brands && $result_brands->num_rows > 0) {
     }
 }
 
+// 从数据库获取预设名称列表
+$names = [];
+$sql_names = "SELECT name FROM preset_names ORDER BY name ASC";
+$result_names = $conn->query($sql_names);
+if ($result_names && $result_names->num_rows > 0) {
+    while ($row = $result_names->fetch_assoc()) {
+        $names[] = $row['name'];
+    }
+}
+
+// 从数据库获取预设规格列表
+$specifications = [];
+$sql_specifications = "SELECT name FROM preset_specifications ORDER BY name ASC";
+$result_specifications = $conn->query($sql_specifications);
+if ($result_specifications && $result_specifications->num_rows > 0) {
+    while ($row = $result_specifications->fetch_assoc()) {
+        $specifications[] = $row['name'];
+    }
+}
+
 
 // 处理表单提交
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -42,9 +54,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $production_date = $_POST['production_date'];
     $expiration_date = $_POST['expiration_date'];
     $remarks = $_POST['remarks'];
-    $specifications = $_POST['specifications'];
-    $quantity = $_POST['quantity']; // 获取新增的数量字段
-    $brand = $_POST['brand']; // 获取新增的品牌字段
+    $specifications_val = $_POST['specifications']; // 注意变量名，避免与数组名冲突
+    $quantity = $_POST['quantity'];
+    $brand = $_POST['brand'];
 
     // 验证数量是否为有效数字
     if (!is_numeric($quantity) || $quantity < 0) {
@@ -53,7 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // 准备 SQL 插入语句，包含 specifications, quantity 和 brand 字段
         $stmt = $conn->prepare("INSERT INTO inventory (name, country, production_date, expiration_date, remarks, specifications, quantity, brand) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         // 注意绑定参数的类型，新增了一个 s (string)
-        $stmt->bind_param("ssssssis", $name, $country, $production_date, $expiration_date, $remarks, $specifications, $quantity, $brand);
+        $stmt->bind_param("ssssssis", $name, $country, $production_date, $expiration_date, $remarks, $specifications_val, $quantity, $brand);
 
         if ($stmt->execute()) {
             $message = "物品添加成功！";
@@ -123,9 +135,16 @@ $conn->close();
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                     <div>
                         <label for="name" class="block text-gray-700 text-sm font-bold mb-2">名称:</label>
-                        <input type="text" id="name" name="name" required
-                               class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                        <select id="name" name="name" required
+                                class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">请选择名称</option>
+                            <?php foreach ($names as $n): ?>
+                                <option value="<?php echo htmlspecialchars($n); ?>"
+                                    <?php echo (isset($_POST['name']) && $_POST['name'] === $n) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($n); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div>
                         <label for="country" class="block text-gray-700 text-sm font-bold mb-2">国家:</label>
@@ -159,9 +178,16 @@ $conn->close();
 
                 <div class="mb-4">
                     <label for="specifications" class="block text-gray-700 text-sm font-bold mb-2">规格:</label>
-                    <input type="text" id="specifications" name="specifications"
-                           class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           value="<?php echo htmlspecialchars($_POST['specifications'] ?? ''); ?>">
+                    <select id="specifications" name="specifications"
+                            class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">请选择规格</option>
+                        <?php foreach ($specifications as $s): ?>
+                            <option value="<?php echo htmlspecialchars($s); ?>"
+                                <?php echo (isset($_POST['specifications']) && $_POST['specifications'] === $s) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($s); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="mb-4">

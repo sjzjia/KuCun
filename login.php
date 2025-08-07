@@ -3,51 +3,80 @@
 
 session_start(); // 启动会话
 
-// 如果用户已登录，重定向到 dashboard.php
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    header("Location: dashboard.php");
-    exit;
-}
-
 require_once 'db_connect.php'; // 引入数据库连接文件
 
-$error = '';
+$username = $password = "";
+$username_err = $password_err = $login_err = "";
 
-// 处理登录表单提交
+// 检查是否已提交表单
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
 
-    // 准备 SQL 查询，防止 SQL 注入
-    $stmt = $conn->prepare("SELECT id, username, password FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $stmt->store_result();
-
-    if ($stmt->num_rows == 1) {
-        $stmt->bind_result($id, $db_username, $hashed_password);
-        $stmt->fetch();
-
-        // 验证密码
-        if (password_verify($password, $hashed_password)) {
-            // 密码正确，设置会话变量
-            $_SESSION['loggedin'] = true;
-            $_SESSION['id'] = $id;
-            $_SESSION['username'] = $db_username;
-
-            // 重定向到 dashboard.php
-            header("Location: dashboard.php");
-            exit;
-        } else {
-            $error = "用户名或密码不正确。";
-        }
+    // 检查用户名是否为空
+    if (empty(trim($_POST["username"]))) {
+        $username_err = "请输入用户名。";
     } else {
-        $error = "用户名或密码不正确。";
+        $username = trim($_POST["username"]);
     }
 
-    $stmt->close();
+    // 检查密码是否为空
+    if (empty(trim($_POST["password"]))) {
+        $password_err = "请输入密码。";
+    } else {
+        $password = trim($_POST["password"]);
+    }
+
+    // 验证凭据
+    if (empty($username_err) && empty($password_err)) {
+        $sql = "SELECT id, username, password FROM users WHERE username = ?";
+
+        if ($stmt = $conn->prepare($sql)) {
+            $stmt->bind_param("s", $param_username);
+            $param_username = $username;
+
+            if ($stmt->execute()) {
+                $stmt->store_result();
+
+                // 检查用户名是否存在，如果存在则验证密码
+                if ($stmt->num_rows == 1) {
+                    $stmt->bind_result($id, $username, $hashed_password);
+                    if ($stmt->fetch()) {
+                        if (password_verify($password, $hashed_password)) {
+                            // 密码正确，启动新会话
+                            session_regenerate_id(true); // 生成新的会话ID，防止会话固定攻击
+
+                            $_SESSION["loggedin"] = true;
+                            $_SESSION["id"] = $id;
+                            $_SESSION["username"] = $username;
+                            $_SESSION["current_session_id"] = session_id(); // 存储当前会话ID
+
+                            // 将当前会话ID更新到数据库
+                            $update_sql = "UPDATE users SET current_session_id = ? WHERE id = ?";
+                            if ($update_stmt = $conn->prepare($update_sql)) {
+                                $update_stmt->bind_param("si", $_SESSION["current_session_id"], $id);
+                                $update_stmt->execute();
+                                $update_stmt->close();
+                            }
+
+                            // 重定向到仪表盘页面
+                            header("Location: dashboard.php");
+                            exit;
+                        } else {
+                            $login_err = "用户名或密码无效。";
+                        }
+                    }
+                } else {
+                    $login_err = "用户名或密码无效。";
+                }
+            } else {
+                echo "糟糕！出错了。请稍后再试。";
+            }
+
+            $stmt->close();
+        }
+    }
+
+    $conn->close();
 }
-$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -55,37 +84,44 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>库存管理系统 - 登录</title>
+    <title>用户登录</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
         }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">登录库存系统</h2>
-        <?php if (!empty($error)): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                <span class="block sm:inline"><?php echo $error; ?></span>
-            </div>
-        <?php endif; ?>
-        <form action="login.php" method="post">
+    <div class="container bg-white p-8 rounded-lg shadow-lg">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">用户登录</h2>
+        <p class="text-gray-600 text-center mb-6">请输入您的凭据登录。</p>
+
+        <?php
+        if (!empty($login_err)) {
+            echo '<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">' . $login_err . '</div>';
+        }
+        ?>
+
+        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
             <div class="mb-4">
                 <label for="username" class="block text-gray-700 text-sm font-bold mb-2">用户名:</label>
-                <input type="text" id="username" name="username" required
-                       class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <input type="text" id="username" name="username"
+                       class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent <?php echo (!empty($username_err)) ? 'border-red-500' : ''; ?>"
+                       value="<?php echo $username; ?>">
+                <span class="text-red-500 text-xs italic"><?php echo $username_err; ?></span>
             </div>
             <div class="mb-6">
                 <label for="password" class="block text-gray-700 text-sm font-bold mb-2">密码:</label>
-                <input type="password" id="password" name="password" required
-                       class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <input type="password" id="password" name="password"
+                       class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent <?php echo (!empty($password_err)) ? 'border-red-500' : ''; ?>">
+                <span class="text-red-500 text-xs italic"><?php echo $password_err; ?></span>
             </div>
             <div class="flex items-center justify-between">
                 <button type="submit"

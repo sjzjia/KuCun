@@ -6,10 +6,11 @@
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL -- 存储哈希后的密码
+    password VARCHAR(255) NOT NULL, -- 存储哈希后的密码
+    current_session_id VARCHAR(255) NULL -- 新增的列，用于存储当前活跃的会话ID
 );
 
--- 库存物品表
+-- 库存物品表 (保持不变)
 CREATE TABLE IF NOT EXISTS inventory (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -18,23 +19,10 @@ CREATE TABLE IF NOT EXISTS inventory (
     expiration_date DATE,
     remarks TEXT,
     specifications VARCHAR(255),
-    quantity INT DEFAULT 0, -- 物品数量字段
-    brand VARCHAR(255), -- 品牌字段
+    quantity INT DEFAULT 0,
+    brand VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- 插入一个示例用户 (密码是 'password123' 的哈希值)
--- !!! 重要：如果你之前已经插入过 'admin' 用户，请先运行下面的 DELETE 语句删除它，
--- !!! 或者运行 UPDATE 语句更新它的密码。
--- !!! 否则，你可能会有多个 'admin' 用户或旧的密码哈希值。
-DELETE FROM users WHERE username = 'admin';
-INSERT INTO users (username, password) VALUES ('admin', '$2y$10$i/D3zmHflxWrDLjUEqvopewnZA0A1Q9igW6VJKqmpzGxwaUqMtjmm'); -- 'password123' 的新哈希值 (来自您的系统生成)
--- 或者，如果你想更新现有用户的密码（推荐，如果 'admin' 已存在）：
--- UPDATE users SET password = '$2y$10$i/D3zmHflxWrDLjUEqvopewnZA0A1Q9igW6VJKqmpzGxwaUqMtjmm' WHERE username = 'admin';
-
--- 如果 inventory 表已存在，但缺少 quantity 或 brand 字段，请运行以下语句添加：
--- ALTER TABLE inventory ADD COLUMN quantity INT DEFAULT 0;
--- ALTER TABLE inventory ADD COLUMN brand VARCHAR(255);
 
 -- 新增发货记录表 (确保在 ALTER TABLE 之前创建)
 CREATE TABLE IF NOT EXISTS shipments (
@@ -51,8 +39,29 @@ CREATE TABLE IF NOT EXISTS shipments (
     FOREIGN KEY (inventory_item_id) REFERENCES inventory(id) ON DELETE RESTRICT -- 限制删除，除非先删除发货记录
 );
 
--- 如果 shipments 表已存在，但缺少收件人信息字段，请运行以下语句添加：
--- 注意：这些 ALTER TABLE 语句现在放在 CREATE TABLE 之后
-ALTER TABLE shipments ADD COLUMN recipient_name VARCHAR(255);
-ALTER TABLE shipments ADD COLUMN recipient_phone VARCHAR(50);
-ALTER TABLE shipments ADD COLUMN recipient_address TEXT;
+
+-- 新增预设国家表 (保持不变)
+CREATE TABLE IF NOT EXISTS preset_countries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- 新增预设品牌表 (保持不变)
+CREATE TABLE IF NOT EXISTS preset_brands (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE
+);
+
+-- 新增系统设置表，用于存储 SSO 启用状态
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_name VARCHAR(50) PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL
+);
+
+-- 插入 SSO 启用状态的默认值 (默认启用)
+INSERT IGNORE INTO system_settings (setting_name, setting_value) VALUES
+('sso_enabled', 'true');
+
+
+DELETE FROM users WHERE username = 'admin';
+INSERT INTO users (username, password) VALUES ('admin', '$2y$10$i/D3zmHflxWrDLjUEqvopewnZA0A1Q9igW6VJKqmpzGxwaUqMtjmm'); -- 'password123' 的新哈希值 (来自您的系统生成)
