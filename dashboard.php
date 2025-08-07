@@ -11,12 +11,62 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 
 require_once 'db_connect.php'; // 引入数据库连接文件
 
+// 预设国家列表 (与 add_item.php 保持一致)
+$countries = [
+    '中国', '美国', '日本', '德国', '法国',
+    '英国', '加拿大', '澳大利亚', '印度', '韩国',
+    '巴西', '俄罗斯', '意大利', '西班牙', '墨西哥'
+];
+
+// 预设品牌列表 (与 add_item.php 保持一致)
+$brands = [
+    'Apple', 'Samsung', 'Huawei', 'Xiaomi', 'Sony',
+    'LG', 'Philips', 'Bosch', 'Siemens', 'Haier',
+    'Dell', 'HP', 'Lenovo', 'Microsoft', 'Logitech'
+];
+
+// --- 获取用于筛选的唯一值 ---
+$unique_names = [];
+$unique_specifications = [];
+$unique_remarks = [];
+
+// 获取所有唯一的名称
+$sql_unique_names = "SELECT DISTINCT name FROM inventory ORDER BY name ASC";
+$result_names = $conn->query($sql_unique_names);
+if ($result_names && $result_names->num_rows > 0) {
+    while ($row = $result_names->fetch_assoc()) {
+        $unique_names[] = $row['name'];
+    }
+}
+
+// 获取所有唯一的规格
+$sql_unique_specifications = "SELECT DISTINCT specifications FROM inventory ORDER BY specifications ASC";
+$result_specifications = $conn->query($sql_unique_specifications);
+if ($result_specifications && $result_specifications->num_rows > 0) {
+    while ($row = $result_specifications->fetch_assoc()) {
+        if (!empty($row['specifications'])) { // 排除空值
+            $unique_specifications[] = $row['specifications'];
+        }
+    }
+}
+
+// 获取所有唯一的备注
+$sql_unique_remarks = "SELECT DISTINCT remarks FROM inventory ORDER BY remarks ASC";
+$result_remarks = $conn->query($sql_unique_remarks);
+if ($result_remarks && $result_remarks->num_rows > 0) {
+    while ($row = $result_remarks->fetch_assoc()) {
+        if (!empty($row['remarks'])) { // 排除空值
+            $unique_remarks[] = $row['remarks'];
+        }
+    }
+}
+
 // 获取排序参数
 $sort_by = $_GET['sort_by'] ?? 'created_at'; // 默认按创建日期排序
 $sort_order = $_GET['sort_order'] ?? 'DESC'; // 默认降序
 
 // 确保排序字段是合法的，防止 SQL 注入
-$allowed_sort_columns = ['name', 'country', 'production_date', 'expiration_date', 'specifications', 'remarks', 'quantity', 'brand', 'created_at']; // 增加 brand
+$allowed_sort_columns = ['name', 'country', 'production_date', 'expiration_date', 'specifications', 'remarks', 'quantity', 'brand', 'created_at'];
 if (!in_array($sort_by, $allowed_sort_columns)) {
     $sort_by = 'created_at'; // 如果不合法，则使用默认排序
 }
@@ -28,7 +78,7 @@ if (!in_array($sort_order, ['ASC', 'DESC'])) {
 }
 
 $inventory_items = [];
-// 查询语句中包含 specifications, quantity 和 brand 字段，并应用排序条件 (客户端筛选将在此基础上进行)
+// 查询语句中包含所有字段，并应用排序条件 (客户端筛选将在此基础上进行)
 $sql = "SELECT id, name, country, production_date, expiration_date, remarks, specifications, quantity, brand FROM inventory ORDER BY " . $sort_by . " " . $sort_order;
 
 $result = $conn->query($sql);
@@ -94,7 +144,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
             background-color: #f0f2f5;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1600px; /* 增加最大宽度 */
             margin: 0 auto;
             padding: 2rem;
         }
@@ -104,8 +154,8 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
         }
         th, td {
             padding: 0.75rem;
-            text-align: left;
             border-bottom: 1px solid #e2e8f0;
+            text-align: center; /* 居中所有表格单元格的内容 */
         }
         th {
             background-color: #f8fafc;
@@ -118,10 +168,12 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
         .sort-link {
             display: flex;
             align-items: center;
+            justify-content: center; /* 居中排序链接内容 */
             gap: 0.25rem;
             color: #4a5568;
             text-decoration: none;
             cursor: pointer;
+            width: 100%; /* 确保排序链接填充整个宽度以便居中 */
         }
         .sort-link:hover {
             color: #2b6cb0; /* blue-700 */
@@ -130,18 +182,20 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
             font-size: 0.75em;
             line-height: 1;
         }
-        .filter-input {
-            margin-top: 0.5rem; /* Space between sort link and filter input */
+        /* 统一筛选输入框和下拉菜单的样式 */
+        .filter-control {
+            margin-top: 0.5rem; /* Space between sort link and filter input/select */
             padding: 0.375rem 0.5rem; /* py-1.5 px-2 */
             font-size: 0.875rem; /* text-sm */
             line-height: 1.25rem; /* leading-5 */
             border-radius: 0.375rem; /* rounded-md */
             border: 1px solid #d2d6dc; /* border-gray-300 */
-            width: 100%;
+            width: 100%; /* 确保填充父元素宽度 */
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
             outline: none;
+            text-align: center; /* 筛选控件内部文本居中 */
         }
-        .filter-input:focus {
+        .filter-control:focus {
             border-color: #3b82f6; /* focus:border-blue-500 */
             box-shadow: 0 0 0 1px #3b82f6; /* focus:ring-1 focus:ring-blue-500 */
         }
@@ -202,92 +256,125 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                 <table id="inventoryTable" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="name">
-                                <div class="flex flex-col">
-                                    <a href="<?php echo getSortLink('name', $sort_by, $sort_order); ?>" class="sort-link">
+                            <!-- 品牌 -->
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="brand" style="min-width: 180px;">
+                                <div class="flex flex-col items-center">
+                                    <a href="<?php echo getSortLink('brand', $sort_by, $sort_order); ?>" class="sort-link w-full">
+                                        品牌
+                                        <?php if ($sort_by === 'brand'): ?>
+                                            <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
+                                        <?php endif; ?>
+                                    </a>
+                                    <select data-filter-column="brand" class="filter-control">
+                                        <option value="">所有品牌</option>
+                                        <?php foreach ($brands as $b): ?>
+                                            <option value="<?php echo htmlspecialchars($b); ?>"><?php echo htmlspecialchars($b); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </th>
+                            <!-- 名称 -->
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="name" style="min-width: 200px;">
+                                <div class="flex flex-col items-center">
+                                    <a href="<?php echo getSortLink('name', $sort_by, $sort_order); ?>" class="sort-link w-full">
                                         名称
                                         <?php if ($sort_by === 'name'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <input type="text" data-filter-column="name" placeholder="筛选名称..." class="filter-input">
+                                    <select data-filter-column="name" class="filter-control">
+                                        <option value="">所有名称</option>
+                                        <?php foreach ($unique_names as $n): ?>
+                                            <option value="<?php echo htmlspecialchars($n); ?>"><?php echo htmlspecialchars($n); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="country">
-                                <div class="flex flex-col">
-                                    <a href="<?php echo getSortLink('country', $sort_by, $sort_order); ?>" class="sort-link">
+                            <!-- 规格 -->
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="specifications" style="min-width: 200px;">
+                                <div class="flex flex-col items-center">
+                                    <a href="<?php echo getSortLink('specifications', $sort_by, $sort_order); ?>" class="sort-link w-full">
+                                        规格
+                                        <?php if ($sort_by === 'specifications'): ?>
+                                            <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
+                                        <?php endif; ?>
+                                    </a>
+                                    <select data-filter-column="specifications" class="filter-control">
+                                        <option value="">所有规格</option>
+                                        <?php foreach ($unique_specifications as $s): ?>
+                                            <option value="<?php echo htmlspecialchars($s); ?>"><?php echo htmlspecialchars($s); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </th>
+                            <!-- 国家 -->
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="country" style="min-width: 180px;">
+                                <div class="flex flex-col items-center">
+                                    <a href="<?php echo getSortLink('country', $sort_by, $sort_order); ?>" class="sort-link w-full">
                                         国家
                                         <?php if ($sort_by === 'country'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <input type="text" data-filter-column="country" placeholder="筛选国家..." class="filter-input">
+                                    <select data-filter-column="country" class="filter-control">
+                                        <option value="">所有国家</option>
+                                        <?php foreach ($countries as $c): ?>
+                                            <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </th>
+                            <!-- 生产日期 -->
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="production_date">
-                                <div class="flex flex-col">
-                                    <a href="<?php echo getSortLink('production_date', $sort_by, $sort_order); ?>" class="sort-link">
+                                <div class="flex flex-col items-center">
+                                    <a href="<?php echo getSortLink('production_date', $sort_by, $sort_order); ?>" class="sort-link w-full">
                                         生产日期
                                         <?php if ($sort_by === 'production_date'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <input type="text" data-filter-column="production_date" placeholder="筛选日期..." class="filter-input">
+                                    <input type="date" data-filter-column="production_date" placeholder="筛选日期..." class="filter-control">
                                 </div>
                             </th>
+                            <!-- 到期日期 -->
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="expiration_date">
-                                <div class="flex flex-col">
+                                <div class="flex flex-col items-center">
                                     <a href="<?php echo getSortLink('expiration_date', $sort_by, $sort_order); ?>" class="sort-link">
                                         到期日期
                                         <?php if ($sort_by === 'expiration_date'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <input type="text" data-filter-column="expiration_date" placeholder="筛选日期..." class="filter-input">
+                                    <input type="date" data-filter-column="expiration_date" placeholder="筛选日期..." class="filter-control">
                                 </div>
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="specifications">
-                                <div class="flex flex-col">
-                                    <a href="<?php echo getSortLink('specifications', $sort_by, $sort_order); ?>" class="sort-link">
-                                        规格
-                                        <?php if ($sort_by === 'specifications'): ?>
-                                            <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
-                                        <?php endif; ?>
-                                    </a>
-                                    <input type="text" data-filter-column="specifications" placeholder="筛选规格..." class="filter-input">
-                                </div>
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="brand">
-                                <div class="flex flex-col">
-                                    <a href="<?php echo getSortLink('brand', $sort_by, $sort_order); ?>" class="sort-link">
-                                        品牌
-                                        <?php if ($sort_by === 'brand'): ?>
-                                            <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
-                                        <?php endif; ?>
-                                    </a>
-                                    <input type="text" data-filter-column="brand" placeholder="筛选品牌..." class="filter-input">
-                                </div>
-                            </th>
+                            <!-- 数量 -->
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="quantity">
-                                <div class="flex flex-col">
+                                <div class="flex flex-col items-center">
                                     <a href="<?php echo getSortLink('quantity', $sort_by, $sort_order); ?>" class="sort-link">
                                         数量
                                         <?php if ($sort_by === 'quantity'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <input type="text" data-filter-column="quantity" placeholder="筛选数量..." class="filter-input">
+                                    <input type="text" data-filter-column="quantity" placeholder="筛选数量..." class="filter-control">
                                 </div>
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="remarks">
-                                <div class="flex flex-col">
+                            <!-- 备注 -->
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" data-column="remarks" style="min-width: 250px;">
+                                <div class="flex flex-col items-center">
                                     <a href="<?php echo getSortLink('remarks', $sort_by, $sort_order); ?>" class="sort-link">
                                         备注
                                         <?php if ($sort_by === 'remarks'): ?>
                                             <span class="sort-arrow"><?php echo ($sort_order === 'ASC') ? '▲' : '▼'; ?></span>
                                         <?php endif; ?>
                                     </a>
-                                    <textarea data-filter-column="remarks" placeholder="筛选备注..." class="filter-input h-auto"></textarea>
+                                    <select data-filter-column="remarks" class="filter-control">
+                                        <option value="">所有备注</option>
+                                        <?php foreach ($unique_remarks as $r): ?>
+                                            <option value="<?php echo htmlspecialchars($r); ?>"><?php echo htmlspecialchars($r); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </th>
                         </tr>
@@ -295,12 +382,12 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                     <tbody id="inventoryTableBody" class="bg-white divide-y divide-gray-200">
                         <?php foreach ($inventory_items as $item): ?>
                             <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['brand']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['name']); ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['specifications']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['country']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['production_date']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['expiration_date']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['specifications']); ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['brand']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['quantity']); ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['remarks']); ?></td>
                             </tr>
@@ -316,28 +403,77 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
             const table = document.getElementById('inventoryTable');
             if (!table) return; // Exit if table not found
 
-            const filterInputs = table.querySelectorAll('.filter-input');
+            const filterControls = table.querySelectorAll('.filter-control'); // 统一选择器
             const rows = table.querySelectorAll('#inventoryTableBody tr');
 
-            filterInputs.forEach(input => {
-                input.addEventListener('keyup', function() {
-                    const filterValue = this.value.toLowerCase();
-                    const filterColumn = this.dataset.filterColumn;
-                    const columnIndex = Array.from(this.closest('th').parentNode.children).indexOf(this.closest('th'));
+            filterControls.forEach(control => {
+                // 根据元素类型绑定不同的事件
+                if (control.tagName === 'SELECT' || control.type === 'date') { // 针对 select 和 date input
+                    control.addEventListener('change', applyFilters);
+                } else { // input[type="text"] or textarea
+                    control.addEventListener('keyup', applyFilters);
+                }
+            });
 
-                    rows.forEach(row => {
-                        const cell = row.children[columnIndex];
-                        if (cell) {
-                            const cellText = cell.textContent.toLowerCase();
-                            if (cellText.includes(filterValue)) {
-                                row.style.display = ''; // Show row
+            function applyFilters() {
+                const activeFilters = {};
+
+                // 收集所有活动的筛选值
+                filterControls.forEach(control => {
+                    const filterColumn = control.dataset.filterColumn;
+                    const filterValue = control.value.toLowerCase().trim();
+                    if (filterValue !== '') {
+                        activeFilters[filterColumn] = filterValue;
+                    }
+                });
+
+                rows.forEach(row => {
+                    let rowMatchesAllFilters = true;
+
+                    // 检查当前行是否匹配所有筛选条件
+                    for (const filterColumn in activeFilters) {
+                        const filterValue = activeFilters[filterColumn];
+                        
+                        // 找到对应列的索引
+                        let columnIndex = -1;
+                        const headerCells = row.closest('table').querySelectorAll('thead th');
+                        headerCells.forEach((th, index) => {
+                            if (th.dataset.column === filterColumn) {
+                                columnIndex = index;
+                            }
+                        });
+
+                        if (columnIndex !== -1) {
+                            const cell = row.children[columnIndex];
+                            if (cell) {
+                                const cellText = cell.textContent.toLowerCase();
+                                // 对于日期，需要精确匹配，或者根据需要实现日期范围筛选
+                                // 对于文本（名称、规格、备注），使用 includes
+                                if (filterColumn === 'production_date' || filterColumn === 'expiration_date') {
+                                    if (cellText !== filterValue) {
+                                        rowMatchesAllFilters = false;
+                                        break;
+                                    }
+                                } else {
+                                    if (!cellText.includes(filterValue)) {
+                                        rowMatchesAllFilters = false;
+                                        break;
+                                    }
+                                }
                             } else {
-                                row.style.display = 'none'; // Hide row
+                                rowMatchesAllFilters = false; // 如果单元格不存在，也视为不匹配
+                                break;
                             }
                         }
-                    });
+                    }
+
+                    if (rowMatchesAllFilters) {
+                        row.style.display = ''; // 显示行
+                    } else {
+                        row.style.display = 'none'; // 隐藏行
+                    }
                 });
-            });
+            }
         });
     </script>
 </body>
