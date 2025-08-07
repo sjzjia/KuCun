@@ -14,19 +14,25 @@ require_once 'db_connect.php'; // 引入数据库连接文件
 $message = '';
 $error = '';
 
-// 预设国家列表
-$countries = [
-    '中国', '美国', '日本', '德国', '法国',
-    '英国', '加拿大', '澳大利亚', '印度', '韩国',
-    '巴西', '俄罗斯', '意大利', '西班牙', '墨西哥'
-];
+// 从数据库获取预设国家列表
+$countries = [];
+$sql_countries = "SELECT name FROM preset_countries ORDER BY name ASC";
+$result_countries = $conn->query($sql_countries);
+if ($result_countries && $result_countries->num_rows > 0) {
+    while ($row = $result_countries->fetch_assoc()) {
+        $countries[] = $row['name'];
+    }
+}
 
-// 预设品牌列表 (您可以根据需要修改或扩展)
-$brands = [
-    'Apple', 'Samsung', 'Huawei', 'Xiaomi', 'Sony',
-    'LG', 'Philips', 'Bosch', 'Siemens', 'Haier',
-    'Dell', 'HP', 'Lenovo', 'Microsoft', 'Logitech'
-];
+// 从数据库获取预设品牌列表
+$brands = [];
+$sql_brands = "SELECT name FROM preset_brands ORDER BY name ASC";
+$result_brands = $conn->query($sql_brands);
+if ($result_brands && $result_brands->num_rows > 0) {
+    while ($row = $result_brands->fetch_assoc()) {
+        $brands[] = $row['name'];
+    }
+}
 
 
 // 处理表单提交
