@@ -15,8 +15,9 @@ $message = '';
 $error = '';
 $inventory_items_for_dropdown = [];
 
-// 获取所有库存物品，用于下拉选择
-$sql_items = "SELECT id, name, quantity FROM inventory WHERE quantity > 0 ORDER BY name ASC";
+// 获取所有库存物品，用于下拉选择，现在包含了品牌、名称、规格、国家和到期日期
+// 排序方式改为：到期日期（升序），NULL值排在最后；然后按名称升序
+$sql_items = "SELECT id, name, brand, specifications, country, expiration_date, quantity FROM inventory WHERE quantity > 0 ORDER BY expiration_date IS NULL ASC, expiration_date ASC, name ASC";
 $result_items = $conn->query($sql_items);
 if ($result_items && $result_items->num_rows > 0) {
     while ($row = $result_items->fetch_assoc()) {
@@ -159,7 +160,14 @@ $conn->close();
                         <?php foreach ($inventory_items_for_dropdown as $item): ?>
                             <option value="<?php echo htmlspecialchars($item['id']); ?>"
                                 <?php echo (isset($_POST['inventory_item_id']) && $_POST['inventory_item_id'] == $item['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($item['name']); ?> (库存: <?php echo htmlspecialchars($item['quantity']); ?>)
+                                <?php
+                                    echo htmlspecialchars($item['brand'] ?? '') . ' - ';
+                                    echo htmlspecialchars($item['name'] ?? '') . ' - ';
+                                    echo htmlspecialchars($item['specifications'] ?? '') . ' - ';
+                                    echo htmlspecialchars($item['country'] ?? '') . ' - ';
+                                    echo '到期: ' . htmlspecialchars($item['expiration_date'] ?? 'N/A') . ' - ';
+                                    echo '(库存: ' . htmlspecialchars($item['quantity'] ?? 0) . ')';
+                                ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
