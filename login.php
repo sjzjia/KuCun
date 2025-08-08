@@ -107,7 +107,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background-image: url('<?php
                 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
                 $host = $_SERVER['HTTP_HOST'];
-                echo $protocol . "://" . $host . "/1/login.jpg";
+                echo $protocol . "://" . $host . "/login.jpg";
             ?>'); 
             background-size: cover;
             background-position: center;
