@@ -96,10 +96,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin: 0 auto;
             padding: 2rem;
         }
+        /* 全屏背景图片样式 */
+        .background-image-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 使用 PHP 自动填入完整的网站 URL */
+            background-image: url('<?php
+                $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+                $host = $_SERVER['HTTP_HOST'];
+                echo $protocol . "://" . $host . "/login.jpg";
+            ?>'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: brightness(70%); /* 调暗背景图，使文字更清晰 */
+            z-index: -1; /* 将背景图置于底层 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="container bg-white p-8 rounded-lg shadow-lg">
+    <!-- 背景图片容器 -->
+    <div class="background-image-container"></div>
+
+    <div class="container bg-white p-8 rounded-lg shadow-lg relative z-10"> <!-- 添加 z-10 确保表单在背景之上 -->
         <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">用户登录</h2>
         <p class="text-gray-600 text-center mb-6">请输入您的凭据登录。</p>
 
