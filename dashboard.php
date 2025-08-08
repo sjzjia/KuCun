@@ -302,7 +302,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
 <body class="bg-gray-100">
     <nav class="bg-blue-600 p-4 shadow-md">
         <div class="container flex flex-col md:flex-row justify-between items-center">
-            <h1 class="text-white text-2xl font-bold mb-2 md:mb-0">库存管理系统</h1>
+            <h1 class="text-white text-2xl font-bold mb-2 md:mb-0"></h1>
             <div class="flex items-center space-x-2 md:space-x-4 nav-links">
                 <span class="text-white">欢迎, <?php echo htmlspecialchars($_SESSION['username']); ?>!</span>
                 <a href="add_item.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">
@@ -328,7 +328,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
     </nav>
 
     <div class="container mt-8">
-        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存概览</h2>
+        <!-- <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存概览</h2> -->
 
         <!-- 统计数据卡片 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -346,7 +346,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
             </div>
         </div>
 
-        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存列表</h2>
+        <!-- <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存列表</h2> -->
 
         <div class="flex flex-col md:flex-row justify-end space-y-2 md:space-y-0 md:space-x-4 mb-4">
             <button id="showAllButton" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
