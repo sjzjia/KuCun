@@ -6,6 +6,41 @@ require_once 'check_session.php'; // 引入会话验证文件
 // db_connect.php 已经在 check_session.php 中引入，无需再次引入
 // require_once 'db_connect.php';
 
+// --- 处理数据导出请求 ---
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    // 设置 HTTP 头，强制浏览器下载文件
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="inventory_export_' . date('Ymd_His') . '.csv"');
+
+    // 创建一个文件指针连接到输出
+    $output = fopen('php://output', 'w');
+
+    // 设置 CSV 文件的 BOM (Byte Order Mark) 以确保 Excel 等软件正确识别 UTF-8 中文
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+    // CSV 表头
+    $header = [
+        '品牌', '名称', '规格', '国家', '生产日期',
+        '到期日期', '数量', '备注'
+    ];
+    fputcsv($output, $header);
+
+    // 从数据库获取所有库存数据
+    $sql_export = "SELECT brand, name, specifications, country, production_date, expiration_date, quantity, remarks FROM inventory ORDER BY created_at DESC";
+    $result_export = $conn->query($sql_export);
+
+    if ($result_export && $result_export->num_rows > 0) {
+        while ($row = $result_export->fetch_assoc()) {
+            fputcsv($output, $row);
+        }
+    }
+
+    fclose($output);
+    $conn->close(); // 在导出完成后关闭数据库连接
+    exit; // 导出完成后终止脚本执行
+}
+
+
 // 预设国家列表 (从数据库获取)
 $countries = [];
 $sql_countries = "SELECT name FROM preset_countries ORDER BY name ASC";
@@ -121,7 +156,7 @@ if ($result_expiring_soon && $result_expiring_soon->num_rows > 0) {
     $expiring_soon = $row_expiring_soon['expiring_soon'] ?? 0;
 }
 
-$conn->close();
+$conn->close(); // 在这里关闭连接，因为它是页面的最后一次数据库操作
 
 // 辅助函数：生成排序链接 (现在不再包含筛选参数，因为筛选在客户端完成)
 function getSortLink($column, $current_sort_by, $current_sort_order) {
@@ -147,7 +182,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
             background-color: #f0f2f5;
         }
         .container {
-            max-width: 1400px; /* 增加最大宽度 */
+            max-width: 1650px; /* 增加最大宽度 */
             margin: 0 auto;
             padding: 2rem;
         }
@@ -252,6 +287,12 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
         </div>
 
         <h2 class="text-3xl font-bold text-gray-800 mb-6">库存列表</h2>
+
+        <div class="flex justify-end mb-4">
+            <a href="dashboard.php?export=csv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
+                导出数据 (CSV)
+            </a>
+        </div>
 
         <?php if (empty($inventory_items)): ?>
             <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative" role="alert">
