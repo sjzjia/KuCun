@@ -34,10 +34,11 @@ if (empty($authToken)) {
     exit(); // 终止脚本
 }
 
-// 查询数据库，验证令牌
-$stmt = $conn->prepare("SELECT id, username, current_session_id FROM users WHERE current_session_id = ? LIMIT 1"); // 添加 current_session_id 到 SELECT 列表以进行日志记录
+// ✨ 查询 user_sessions 表，验证令牌是否有效且未过期
+// 关联 users 表以获取用户名
+$stmt = $conn->prepare("SELECT us.user_id, u.username FROM user_sessions us JOIN users u ON us.user_id = u.id WHERE us.session_token = ? AND (us.expires_at IS NULL OR us.expires_at > NOW()) LIMIT 1");
 if (!$stmt) {
-    error_log("check_mp_auth.php: Database prepare failed: " . $conn->error);
+    error_log("check_mp_auth.php: Database prepare failed for user_sessions query: " . $conn->error);
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => '数据库查询准备失败: ' . $conn->error]);
     $conn->close();
@@ -50,16 +51,29 @@ $result = $stmt->get_result();
 
 if ($result->num_rows === 1) {
     // 认证成功
-    $user = $result->fetch_assoc();
-    $authenticated_mp_user_id = $user['id'];
-    $authenticated_mp_username = $user['username'];
+    $session_data = $result->fetch_assoc();
+    $authenticated_mp_user_id = $session_data['user_id'];
+    $authenticated_mp_username = $session_data['username'];
     // 调试日志：记录认证成功
-    error_log("check_mp_auth.php: Authentication successful for user ID: " . $user['id'] . ", Username: " . $user['username']);
-    error_log("check_mp_auth.php: Database current_session_id: " . ($user['current_session_id'] ? $user['current_session_id'] : '[NULL]'));
+    error_log("check_mp_auth.php: Authentication successful for user ID: " . $authenticated_mp_user_id . ", Username: " . $authenticated_mp_username . ", Session Token: " . $authToken);
     // 继续执行后续逻辑（例如 get_inventory.php）
+
+    // 可选：每次成功认证后更新会话的 expires_at，实现“滑动窗口”式过期
+    /*
+    $new_expires_at = date('Y-m-d H:i:s', strtotime('+7 days'));
+    $stmt_update_expiry = $conn->prepare("UPDATE user_sessions SET expires_at = ? WHERE session_token = ?");
+    if ($stmt_update_expiry) {
+        $stmt_update_expiry->bind_param("ss", $new_expires_at, $authToken);
+        $stmt_update_expiry->execute();
+        $stmt_update_expiry->close();
+    } else {
+        error_log("check_mp_auth.php: Failed to prepare statement for session expiry update: " . $conn->error);
+    }
+    */
+
 } else {
     // 认证失败：令牌无效或已过期
-    error_log("check_mp_auth.php: Authentication failed for authToken: " . $authToken);
+    error_log("check_mp_auth.php: Authentication failed for authToken: " . $authToken . ". Token not found or expired.");
     
     http_response_code(401); // 未授权
     echo json_encode(['success' => false, 'message' => '认证令牌无效或已过期。']);
