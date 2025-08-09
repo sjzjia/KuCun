@@ -131,6 +131,7 @@ if ($result && $result->num_rows > 0) {
 $total_items = 0;
 $expired_items = 0;
 $expiring_soon = 0; // 即将过期 (例如，未来30天内)
+$shipped_quantity = 0; // ✨ 新增：已发货数量
 
 // 查询总物品数量
 $sql_total = "SELECT SUM(quantity) AS total_items FROM inventory"; // 统计总数量
@@ -155,6 +156,15 @@ if ($result_expiring_soon && $result_expiring_soon->num_rows > 0) {
     $row_expiring_soon = $result_expiring_soon->fetch_assoc();
     $expiring_soon = $row_expiring_soon['expiring_soon'] ?? 0;
 }
+
+// ✨ 新增：查询已发货数量
+$sql_shipped = "SELECT SUM(quantity_shipped) AS shipped_total FROM shipments";
+$result_shipped = $conn->query($sql_shipped);
+if ($result_shipped && $result_shipped->num_rows > 0) {
+    $row_shipped = $result_shipped->fetch_assoc();
+    $shipped_quantity = $row_shipped['shipped_total'] ?? 0;
+}
+
 
 $conn->close(); // 在这里关闭连接，因为它是页面的最后一次数据库操作
 
@@ -183,7 +193,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
         }
         /* 调整容器的最大宽度和内边距，使其在小屏幕上更适应 */
         .container {
-            max-width: 1850px; /* 保持大屏幕的最大宽度 */
+            max-width: 1650px; /* 保持大屏幕的最大宽度 */
             margin: 0 auto;
             padding: 1rem; /* 默认较小内边距 */
         }
@@ -302,7 +312,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
 <body class="bg-gray-100">
     <nav class="bg-blue-600 p-4 shadow-md">
         <div class="container flex flex-col md:flex-row justify-between items-center">
-            <h1 class="text-white text-2xl font-bold mb-2 md:mb-0"></h1>
+            <h1 class="text-white text-2xl font-bold mb-2 md:mb-0">库存管理系统</h1>
             <div class="flex items-center space-x-2 md:space-x-4 nav-links">
                 <span class="text-white">欢迎, <?php echo htmlspecialchars($_SESSION['username']); ?>!</span>
                 <a href="add_item.php" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition duration-150 ease-in-out">
@@ -328,10 +338,10 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
     </nav>
 
     <div class="container mt-8">
-        <!-- <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存概览</h2> -->
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存概览</h2>
 
         <!-- 统计数据卡片 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-lg shadow-lg text-center">
                 <p class="text-gray-500 text-sm font-medium uppercase">总物品数量</p>
                 <p id="filteredTotalItems" class="text-4xl font-bold text-blue-600 mt-2"><?php echo $total_items; ?></p>
@@ -344,9 +354,14 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                 <p id="expiringSoonLabel" class="text-gray-500 text-sm font-medium uppercase">即将过期物品数量 (30天内)</p>
                 <p id="filteredExpiringSoonItems" class="text-4xl font-bold text-yellow-600 mt-2"><?php echo $expiring_soon; ?></p>
             </div>
+            <!-- ✨ 新增：已发货数量统计卡片，点击后跳转到发货列表 -->
+            <div class="bg-white p-6 rounded-lg shadow-lg text-center cursor-pointer" onclick="window.location.href='shipments_list.php';">
+                <p class="text-gray-500 text-sm font-medium uppercase">已发货数量</p>
+                <p class="text-4xl font-bold text-gray-600 mt-2"><?php echo $shipped_quantity; ?></p>
+            </div>
         </div>
 
-        <!-- <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存列表</h2> -->
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center md:text-left">库存列表</h2>
 
         <div class="flex flex-col md:flex-row justify-end space-y-2 md:space-y-0 md:space-x-4 mb-4">
             <button id="showAllButton" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
@@ -561,7 +576,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                             <?php foreach ($inventory_items as $item): ?>
                                 <tr data-item-id="<?php echo htmlspecialchars($item['id']); ?>"> <!-- Added data-item-id to row -->
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <input type="checkbox" class="item-checkbox form-checkbox h-4 w-4 text-blue-600 rounded" data-id="<?php echo htmlspecialchars($item['id']); ?>">
+                                        <input type="checkbox" class="item-checkbox form-checkbox h-4 w-4 text-blue-600 rounded">
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['brand']); ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($item['name']); ?></td>
@@ -610,7 +625,7 @@ function getSortLink($column, $current_sort_by, $current_sort_order) {
                                 class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">请选择名称</option>
                             <?php foreach ($names as $n): ?>
-                                <option value="<?php echo htmlspecialchars($n); ?>"><?php htmlspecialchars($n); ?></option>
+                                <option value="<?php echo htmlspecialchars($n); ?>"><?php echo htmlspecialchars($n); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

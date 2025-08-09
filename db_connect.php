@@ -2,8 +2,8 @@
 // db_connect.php - 数据库连接文件
 
 $servername = "mysql"; // 数据库服务器名
-$username = "root";      // 数据库用户名 (通常是 XAMPP/WAMP 的默认值)
-$password = "JIAshaowei1990++";          // 数据库密码 (通常是 XAMPP/WAMP 的默认值)
+$username = "inventory";      // 数据库用户名 (通常是 XAMPP/WAMP 的默认值)
+$password = "Inventory123++";          // 数据库密码 (通常是 XAMPP/WAMP 的默认值)
 $dbname = "inventory_db"; // 你的数据库名
 
 // 创建数据库连接

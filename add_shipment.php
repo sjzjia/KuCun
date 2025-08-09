@@ -68,7 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt_check_quantity->fetch();
                 $stmt_check_quantity->close();
 
-                if ($quantity_shipped > $current_quantity) {
+                if ($quantity_shpped > $current_quantity) {
                     throw new Exception("第 " . ($index + 1) . " 行：发货数量超出当前库存量。当前库存: " . $current_quantity);
                 }
 
@@ -249,6 +249,20 @@ $conn->close();
 
                 <hr class="my-8 border-t-2 border-gray-200">
 
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">收件人信息</h3>
+
+                <!-- 新增：粘贴收件人信息区域 -->
+                <div class="mb-6">
+                    <label for="combined_recipient_info" class="block text-gray-700 text-sm font-bold mb-2">粘贴收件人信息 (姓名 电话 地址):</label>
+                    <textarea id="combined_recipient_info" rows="4"
+                              class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="例如: 张三 13812345678 北京市朝阳区建国路88号"></textarea>
+                    <button type="button" id="parseInfoButton"
+                            class="mt-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">
+                        识别并填充
+                    </button>
+                </div>
+                
                 <div class="mb-6">
                     <label for="recipient_name" class="block text-gray-700 text-sm font-bold mb-2">收件人名称:</label>
                     <input type="text" id="recipient_name" name="recipient_name"
@@ -293,6 +307,13 @@ $conn->close();
 
             // PHP 传递的库存物品数据
             const inventoryItems = <?php echo json_encode($inventory_items_for_dropdown); ?>;
+
+            // 获取收件人信息相关元素
+            const combinedInfoTextarea = document.getElementById('combined_recipient_info');
+            const parseInfoButton = document.getElementById('parseInfoButton');
+            const recipientNameInput = document.getElementById('recipient_name');
+            const recipientPhoneInput = document.getElementById('recipient_phone');
+            const recipientAddressTextarea = document.getElementById('recipient_address');
 
             function addItemRow() {
                 const rowDiv = document.createElement('div');
@@ -384,6 +405,80 @@ $conn->close();
 
             // "添加物品"按钮事件
             addItemButton.addEventListener('click', addItemRow);
+
+            // --- 智能识别收件人信息功能 ---
+            parseInfoButton.addEventListener('click', function() {
+                const combinedText = combinedInfoTextarea.value;
+                const parsed = parseRecipientInfo(combinedText);
+                
+                recipientNameInput.value = parsed.name;
+                recipientPhoneInput.value = parsed.phone;
+                recipientAddressTextarea.value = parsed.address;
+            });
+
+            function parseRecipientInfo(combinedText) {
+                let name = '';
+                let phone = '';
+                let address = '';
+                let tempText = combinedText.trim();
+
+                // 1. 提取电话号码 (最可靠的模式)
+                // 匹配11位手机号 (1开头) 或带区号的座机号 (0XX-XXXXXXXX 或 0XXX-XXXXXXX)
+                // (?:\+|00)?86\s* 可选匹配国际区号 +86 或 0086 及后续空格
+                const phoneRegex = /(?:(?:\+|00)?86[\s-]*)?(1[3-9]\d{9}|0\d{2,3}[- ]?\d{7,8})(?!\d)/g;
+                let phoneMatches = tempText.match(phoneRegex);
+
+                if (phoneMatches && phoneMatches.length > 0) {
+                    // 提取找到的第一个电话号码，并清理掉非数字字符
+                    phone = phoneMatches[0].replace(/[^0-9]/g, ''); 
+                    // 从原始文本中移除电话号码部分 (确保移除的是匹配到的完整字符串，包括区号等)
+                    tempText = tempText.replace(phoneMatches[0], '').trim();
+                }
+
+                // 2. 尝试从剩余文本中分割姓名和地址
+                // 常见地址关键词，用于判断哪些部分可能是地址
+                const addressKeywords = ['省', '市', '区', '县', '镇', '村', '路', '街', '巷', '号', '大厦', '楼', '栋', '单元', '室', '公寓', '园', '苑'];
+                
+                let potentialAddressStart = -1;
+                // 遍历地址关键词，寻找最早出现的关键词
+                for (const keyword of addressKeywords) {
+                    const index = tempText.indexOf(keyword);
+                    if (index !== -1 && (potentialAddressStart === -1 || index < potentialAddressStart)) {
+                        potentialAddressStart = index;
+                    }
+                }
+
+                if (potentialAddressStart !== -1) {
+                    // 如果找到了地址关键词，假设从该关键词开始的部分是地址
+                    address = tempText.substring(potentialAddressStart).trim();
+                    name = tempText.substring(0, potentialAddressStart).trim();
+                } else {
+                    // 如果没有找到明确的地址关键词，简单地将剩余的文本全部作为姓名
+                    // 这种情况下地址将为空，用户需要手动填写
+                    name = tempText;
+                    address = '';
+                }
+
+                // 清理姓名和地址中的多余空格和换行符
+                name = name.replace(/\s+/g, ' ').replace(/[,，\s]+$/, '').trim();
+                address = address.replace(/\s+/g, ' ').trim();
+
+                // 最终检查：如果姓名部分看起来像地址（很长且地址为空），则交换
+                if (name.length > 20 && address.length === 0) { // 假设姓名通常不会超过20个字符
+                    address = name;
+                    name = '';
+                } else if (name.length > 0 && address.length > 0 && name.length + address.length + (phone.length > 0 ? phone.length : 0) > combinedText.length * 0.8 && combinedText.length > 0) {
+                    // 如果识别出的名字和地址加起来接近原始字符串长度，并且两者都有内容
+                    // 这可能是一个比较好的识别结果
+                }
+                else if (name.length === 0 && address.length === 0 && tempText.length > 0) {
+                    // 如果姓名和地址都为空，但 tempText 还有内容，将其放入地址
+                    address = tempText;
+                }
+
+
+                return { name, phone, address };
+            }
         });
     </script>
 </body>
