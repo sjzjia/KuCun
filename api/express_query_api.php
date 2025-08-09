@@ -17,7 +17,7 @@ $response = [
 
 // !!! 请将这里替换为您的阿里云 AppCode !!!
 // 获取您的 AppCode: 登录阿里云控制台 -> 云市场 -> 购买的服务 -> 管理 -> API网关
-$appcode = "aec4d9b593a44a9086e5d4fa0843db24"; 
+$appcode = "你自己的AppCode"; 
 $is_placeholder_appcode = ($appcode === "你自己的AppCode" || empty($appcode) || $appcode === "YOUR_APP_CODE_HERE");
 
 // For verbose cURL logging - 将详细的 cURL 调试信息输出到单独的日志文件
