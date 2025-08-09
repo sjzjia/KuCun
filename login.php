@@ -47,15 +47,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $_SESSION["loggedin"] = true;
                             $_SESSION["id"] = $id;
                             $_SESSION["username"] = $username;
-                            $_SESSION["current_session_id"] = session_id(); // 存储当前会话ID
+                            // ✨ 移除以下行，不再将 current_session_id 存储到 $_SESSION 或数据库
+                            // $_SESSION["current_session_id"] = session_id(); 
 
                             // 将当前会话ID更新到数据库
+                            // ✨ 移除以下代码块，不再更新 users 表的 current_session_id
+                            /*
                             $update_sql = "UPDATE users SET current_session_id = ? WHERE id = ?";
                             if ($update_stmt = $conn->prepare($update_sql)) {
                                 $update_stmt->bind_param("si", $_SESSION["current_session_id"], $id);
                                 $update_stmt->execute();
                                 $update_stmt->close();
                             }
+                            */
 
                             // 重定向到仪表盘页面
                             header("Location: dashboard.php");
